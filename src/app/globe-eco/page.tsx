@@ -18,10 +18,27 @@ import {
   Search,
   Activity,
   Heart,
-  ShieldCheck
+  ShieldCheck,
+  User,
+  Menu
 } from 'lucide-react';
 
-// Interfaz alineada exactamente con las columnas del script de procesamiento Python
+/* ==========================================================================
+   INTERFACES & TYPES (HEADER)
+   ========================================================================== */
+interface LinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  children: React.ReactNode;
+}
+
+interface NavItem {
+  name: string;
+  href: string;
+}
+
+/* ==========================================================================
+   INTERFACES (GLOBE APP)
+   ========================================================================== */
 interface EcoPoint {
   id: number;
   iso: string;
@@ -40,6 +57,99 @@ interface EcoPoint {
   color: string;
 }
 
+/* ==========================================================================
+   SIMULATED COMPONENTS (HEADER)
+   ========================================================================== */
+const Link = ({ href, children, className, ...props }: LinkProps) => (
+  <a href={href} className={className} {...props}>
+    {children}
+  </a>
+);
+
+/* ==========================================================================
+   COMPONENTE: Header
+   ========================================================================== */
+const Header = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
+  const navItems: NavItem[] = [
+    { name: 'About Us', href: '/about-us' },
+    { name: 'Globe', href: '/globe-eco' },
+    { name: 'Settings', href: '/settings' },
+    { name: 'Help/FAQ', href: '/help' },
+    { name: 'Sign Up', href: '/sign-up' }
+  ];
+
+  return (
+    <>
+      <header className="absolute top-0 left-0 w-full z-50 px-0 md:px-[30px] py-1 md:py-6 flex justify-between items-center h-14 md:h-auto pointer-events-none">
+        <div className="pointer-events-auto pl-4 md:pl-0">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer no-underline relative z-50">
+            <Globe 
+                className="w-7 h-7 md:w-8 md:h-8 text-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12" 
+                strokeWidth={1.5} 
+            />
+            <span className="text-white font-bold text-lg md:text-xl tracking-wide font-sans">
+                EARTHLY
+            </span>
+            </Link>
+        </div>
+
+        <nav className="hidden md:flex items-center gap-8 bg-white/10 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-lg pointer-events-auto">
+          {navItems.map((item) => (
+            <Link 
+              key={item.name} 
+              href={item.href} 
+              className="text-white text-sm font-medium transition-all duration-300 hover:scale-110 transform no-underline"
+            >
+              {item.name}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-4 z-50 pr-4 md:pr-0 pointer-events-auto">
+          <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 border border-white/5">
+            <Search size={18} />
+          </button>
+          
+          <Link 
+            href="/profile" 
+            className="hidden md:flex w-10 h-10 rounded-full bg-white/10 items-center justify-center text-white transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 border border-white/5 no-underline"
+          >
+            <User size={18} />
+          </Link>
+          
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            className="md:hidden w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-all duration-300 active:scale-95 border border-white/5"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </header>
+
+      <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-xl transition-transform duration-500 md:hidden flex flex-col items-center justify-center ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <nav className="flex flex-col items-center gap-6">
+          {navItems.map((item) => (
+            <Link key={item.name} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="text-white text-sm font-medium tracking-widest transition-all duration-300 hover:text-white/70 no-underline uppercase">{item.name}</Link>
+          ))}
+          <Link 
+              href="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-white text-sm font-medium tracking-widest transition-all duration-300 hover:text-white/70 flex items-center gap-2 mt-4 border-t border-white/10 pt-6 no-underline uppercase"
+          >
+            <User size={16} />
+            <span>Profile</span>
+          </Link>
+        </nav>
+      </div>
+    </>
+  );
+};
+
+/* ==========================================================================
+   MAIN APP (GLOBE LOGIC)
+   ========================================================================== */
 export default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
@@ -152,7 +262,7 @@ export default function App() {
       dot.userData = point;
       markers.add(dot);
 
-      // Efecto visual para países con score sobresaliente (según el nuevo cálculo del script)
+      // Efecto visual para países con score sobresaliente
       if (point.score > 75) {
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(2.2, 2.6, 16),
@@ -219,50 +329,37 @@ export default function App() {
 
   return (
     <div className="relative w-full h-screen bg-[#020617] overflow-hidden font-sans text-white">
-      {/* UI Superior: Header de Datos Reales */}
-      <div className="absolute top-0 left-0 w-full p-6 z-30 pointer-events-none flex flex-col md:flex-row justify-between items-start gap-4">
-        <div className="pointer-events-auto">
-          <div className="bg-slate-900/60 backdrop-blur-xl p-5 rounded-[2rem] border border-white/10 shadow-2xl flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/20 rounded-2xl border border-emerald-500/20">
-              <Globe className="text-emerald-400 w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tighter uppercase italic leading-none">
-                Earthly <span className="text-emerald-500">Analytics</span>
-              </h1>
-              <p className="text-[10px] text-white/40 font-mono uppercase tracking-[0.2em] mt-1">Sostenibilidad Multivariable (Score WDI/HDI)</p>
-            </div>
-          </div>
-        </div>
+      
+      {/* HEADER INTEGRADO */}
+      <Header />
 
-        {/* Buscador de Países por ISO/Nombre */}
-        <div className="pointer-events-auto relative w-full md:w-80">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-emerald-400 transition-colors" size={18} />
-            <input 
-              type="text" 
-              placeholder="Localizar país..." 
-              className="w-full bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all shadow-xl"
-              value={searchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          {filteredPoints.length > 0 && (
-            <div className="absolute top-full left-0 w-full mt-2 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2">
-              {filteredPoints.map((p: EcoPoint) => (
-                <button 
-                  key={p.iso} 
-                  onClick={() => focusOnCountry(p)}
-                  className="w-full px-5 py-3 text-left hover:bg-emerald-500/10 flex items-center justify-between border-b border-white/5 last:border-none transition-colors"
-                >
-                  <span className="font-medium text-sm">{p.name}</span>
-                  <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{p.iso}</span>
-                </button>
-              ))}
-            </div>
-          )}
+      {/* Buscador de Países Funcional del Globo (Reposicionado para no chocar con el Header) */}
+      <div className="absolute top-24 md:top-28 left-4 md:left-8 z-30 w-full max-w-[280px] md:max-w-xs">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-emerald-400 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Localizar país..." 
+            className="w-full bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all shadow-xl"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
+        
+        {filteredPoints.length > 0 && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto">
+            {filteredPoints.map((p) => (
+              <button 
+                key={p.iso} 
+                onClick={() => focusOnCountry(p)}
+                className="w-full px-5 py-3 text-left hover:bg-emerald-500/10 flex items-center justify-between border-b border-white/5 last:border-none transition-colors"
+              >
+                <span className="font-medium text-sm">{p.name}</span>
+                <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{p.iso}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {isLoading && (
@@ -290,7 +387,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Panel Detallado alineado al nuevo sustainability_index.csv */}
+      {/* Panel Detallado */}
       {selectedPoint && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl bg-[#0a0f1e]/90 backdrop-blur-3xl border border-white/10 p-8 md:p-12 rounded-[3rem] shadow-2xl z-40 animate-in fade-in slide-in-from-bottom-10 duration-500">
           <div className="flex justify-between items-start mb-10">

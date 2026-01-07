@@ -1,32 +1,80 @@
+// @ts-nocheck
 "use client";
 
-import React, { useState, useRef } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import {
-  Map,
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { 
+  Globe, 
+  Wind, 
+  Zap, 
+  Droplets, 
+  AlertCircle, 
+  RefreshCw, 
+  X, 
+  Award, 
+  MapPin,
   Compass,
-  Home as HomeIcon,
-  Heart,
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  Globe,
   Search,
+  Activity,
+  Heart,
+  ShieldCheck,
   User,
-  Menu,
-  X
+  Menu
 } from 'lucide-react';
+
+/* ==========================================================================
+   INTERFACES & TYPES (HEADER)
+   ========================================================================== */
+interface LinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  children: React.ReactNode;
+}
+
+interface NavItem {
+  name: string;
+  href: string;
+}
+
+/* ==========================================================================
+   INTERFACES (GLOBE APP)
+   ========================================================================== */
+interface EcoPoint {
+  id: number;
+  iso: string;
+  name: string;
+  lat: number;
+  lon: number;
+  score: number;
+  co2: string;         // co2_per_capita
+  pm25: string;        // pm25 (Aire)
+  renewables: string;   // renewables_elec_pct
+  protected: string;   // protected_land_pct
+  water: string;       // safe_water_pct
+  life: string;        // life_expectancy_yrs
+  hdi: string;         // hdi
+  trivia: string;
+  color: string;
+}
+
+/* ==========================================================================
+   SIMULATED COMPONENTS (HEADER)
+   ========================================================================== */
+const Link = ({ href, children, className, ...props }: LinkProps) => (
+  <a href={href} className={className} {...props}>
+    {children}
+  </a>
+);
 
 /* ==========================================================================
    COMPONENTE: Header
    ========================================================================== */
 const Header = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: 'About Us', href: '/about-us' },
-    { name: 'Globe', href: 'https://eco-travel-globe-earthly.vercel.app/' },
+    { name: 'Globe', href: '/globe-eco' }, // Actualizado a ruta interna
     { name: 'Settings', href: '/settings' },
     { name: 'Help/FAQ', href: '/help' },
     { name: 'Sign Up', href: '/sign-up' }
@@ -34,18 +82,20 @@ const Header = () => {
 
   return (
     <>
-      <header className="absolute top-0 left-0 w-full z-50 px-0 md:px-[30px] py-1 md:py-6 flex justify-between items-center h-14 md:h-auto">
-        <Link href="/" className="flex items-center gap-2 group cursor-pointer no-underline relative z-50 pl-1 md:pl-0">
-          <Globe 
-            className="w-7 h-7 md:w-8 md:h-8 text-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12" 
-            strokeWidth={1.5} 
-          />
-          <span className="text-white font-bold text-lg md:text-xl tracking-wide font-sans">
-            EARTHLY
-          </span>
-        </Link>
+      <header className="absolute top-0 left-0 w-full z-50 px-0 md:px-[30px] py-1 md:py-6 flex justify-between items-center h-14 md:h-auto pointer-events-none">
+        <div className="pointer-events-auto pl-4 md:pl-0">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer no-underline relative z-50">
+            <Globe 
+                className="w-7 h-7 md:w-8 md:h-8 text-white transition-all duration-500 group-hover:scale-110 group-hover:rotate-12" 
+                strokeWidth={1.5} 
+            />
+            <span className="text-white font-bold text-lg md:text-xl tracking-wide font-sans">
+                EARTHLY
+            </span>
+            </Link>
+        </div>
 
-        <nav className="hidden md:flex items-center gap-8 bg-white/10 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-lg">
+        <nav className="hidden md:flex items-center gap-8 bg-white/10 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-lg pointer-events-auto">
           {navItems.map((item) => (
             <Link 
               key={item.name} 
@@ -57,12 +107,11 @@ const Header = () => {
           ))}
         </nav>
 
-        <div className="flex items-center gap-4 z-50 pr-1 md:pr-0">
+        <div className="flex items-center gap-4 z-50 pr-4 md:pr-0 pointer-events-auto">
           <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 border border-white/5">
             <Search size={18} />
           </button>
           
-          {/* Botón de Perfil actualizado con Link */}
           <Link 
             href="/profile" 
             className="hidden md:flex w-10 h-10 rounded-full bg-white/10 items-center justify-center text-white transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 border border-white/5 no-underline"
@@ -71,7 +120,7 @@ const Header = () => {
           </Link>
           
           <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
             className="md:hidden w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-all duration-300 active:scale-95 border border-white/5"
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -79,18 +128,10 @@ const Header = () => {
         </div>
       </header>
 
-      {/* OVERLAY MENÚ MOBILE */}
       <div className={`fixed inset-0 z-40 bg-black/95 backdrop-blur-xl transition-transform duration-500 md:hidden flex flex-col items-center justify-center ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <nav className="flex flex-col items-center gap-6">
           {navItems.map((item) => (
-            <Link 
-              key={item.name} 
-              href={item.href} 
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-white text-sm font-medium tracking-widest transition-all duration-300 hover:text-white/70 no-underline uppercase"
-            >
-              {item.name}
-            </Link>
+            <Link key={item.name} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="text-white text-sm font-medium tracking-widest transition-all duration-300 hover:text-white/70 no-underline uppercase">{item.name}</Link>
           ))}
           <Link 
               href="/profile"
@@ -107,186 +148,314 @@ const Header = () => {
 };
 
 /* ==========================================================================
-   VISTA: HomeView
+   MAIN APP (GLOBE LOGIC)
    ========================================================================== */
-const HomeView = () => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+export default function App() {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<any>(null);
+  const [ecoPoints, setEcoPoints] = useState<EcoPoint[]>([]);
+  const [selectedPoint, setSelectedPoint] = useState<EcoPoint | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const destinationsData = [
-    { id: 1, image: '/Popular_1.jpg', text: 'Tranquil lakes and majestic peaks await.', price: '$400' },
-    { id: 2, image: '/Popular_2.jpg', text: 'Hike ancient trails and crystal-clear rivers.', price: '$400' },
-    { id: 3, image: '/Popular_3.jpg', text: 'Explore alpine meadows and iconic summits.', price: '$400' },
-    { id: 4, image: '/Popular_4.jpg', text: 'Relax on hidden beaches and turquoise waters.', price: '$400' },
-  ];
+  // Filtrado de países para el buscador basado en los datos reales del CSV
+  const filteredPoints = useMemo(() => {
+    if (!searchQuery) return [];
+    return ecoPoints.filter((p: EcoPoint) => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      p.iso.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 5);
+  }, [searchQuery, ecoPoints]);
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const { current } = scrollContainerRef;
-      const firstCard = current.querySelector('div');
-      
-      if (firstCard) {
-        const cardWidth = (firstCard as HTMLElement).offsetWidth;
-        const gap = parseInt(window.getComputedStyle(current).columnGap) || 0;
-        const stepSize = cardWidth + gap;
-        
-        const currentIndex = Math.round(current.scrollLeft / stepSize);
-        const maxIndex = destinationsData.length - 1;
-        
-        let targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-        targetIndex = Math.max(0, Math.min(targetIndex, maxIndex));
-        
-        current.scrollTo({
-          left: targetIndex * stepSize,
-          behavior: 'smooth'
-        });
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      // Petición al backend que sirve el archivo sustainability_index.csv
+      const res = await fetch('http://localhost:5000/api/data');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Error al conectar con el servidor de datos");
       }
+      const data = await res.json();
+      setEcoPoints(data);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Error desconocido";
+      setError(`Error de sincronización: ${errorMessage}. Verifica que el backend esté leyendo el nuevo CSV.`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const categories = [
-    { name: 'Destinations', icon: <Map className="w-6 h-6 text-white" />, href: '/destinations' },
-    { name: 'Experiences', icon: <Compass className="w-6 h-6 text-white" />, href: '/experiences' },
-    { name: 'Lodges', icon: <HomeIcon className="w-6 h-6 text-white" />, href: '/lodges' },
-    { name: 'Wishlist', icon: <Heart className="w-6 h-6 text-white" />, href: '/wishlist' },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const latLonToVector3 = useCallback((lat: number, lon: number, radius: number): THREE.Vector3 => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    const y = radius * Math.cos(phi);
+    return new THREE.Vector3(x, y, z);
+  }, []);
+
+  const focusOnCountry = (point: EcoPoint) => {
+    if (!controlsRef.current) return;
+    setSelectedPoint(point);
+    setSearchQuery("");
+    const pos = latLonToVector3(point.lat, point.lon, 250);
+    controlsRef.current.object.position.set(pos.x, pos.y, pos.z);
+    controlsRef.current.autoRotate = false;
+  };
+
+  useEffect(() => {
+    if (!mountRef.current || ecoPoints.length === 0) return;
+    
+    const width = mountRef.current.clientWidth;
+    const height = mountRef.current.clientHeight;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+    
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.z = 300;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    const currentMount = mountRef.current;
+    currentMount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+    sunLight.position.set(5, 3, 5);
+    scene.add(sunLight);
+
+    const world = new THREE.Group();
+    scene.add(world);
+
+    const loader = new THREE.TextureLoader();
+    const earthTexture = loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+    
+    const earthMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(100, 64, 64),
+      new THREE.MeshPhongMaterial({ 
+        map: earthTexture,
+        shininess: 5,
+        bumpScale: 0.05
+      })
+    );
+    world.add(earthMesh);
+
+    const markers = new THREE.Group();
+    world.add(markers);
+
+    ecoPoints.forEach((point: EcoPoint) => {
+      const pos = latLonToVector3(point.lat, point.lon, 100.5);
+      
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 12, 12),
+        new THREE.MeshBasicMaterial({ color: point.color })
+      );
+      dot.position.copy(pos);
+      dot.userData = point;
+      markers.add(dot);
+
+      // Efecto visual para países con score sobresaliente
+      if (point.score > 75) {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(2.2, 2.6, 16),
+          new THREE.MeshBasicMaterial({ color: point.color, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+        );
+        ring.position.copy(pos);
+        ring.lookAt(new THREE.Vector3(0,0,0));
+        markers.add(ring);
+      }
+    });
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.4;
+    controlsRef.current = controls;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const onMouseDown = (event: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(markers.children);
+      const marker = intersects.find((i: THREE.Intersection) => i.object.userData && i.object.userData.iso);
+      
+      if (marker) {
+        setSelectedPoint(marker.object.userData as EcoPoint);
+        controls.autoRotate = false;
+      }
+    };
+
+    window.addEventListener('mousedown', onMouseDown);
+
+    let animationId: number;
+    const animate = () => {
+      animationId = requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const handleResize = () => {
+      if (!currentMount) return;
+      renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+      camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousedown', onMouseDown);
+      if (animationId) cancelAnimationFrame(animationId);
+      if (currentMount && currentMount.contains(renderer.domElement)) {
+        currentMount.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+    };
+  }, [ecoPoints, latLonToVector3]);
 
   return (
-    <div className="flex-1 relative flex flex-col w-full h-full overflow-hidden px-1 md:px-[30px] pb-2 md:pb-0">
+    <div className="relative w-full h-screen bg-[#020617] overflow-hidden font-sans text-white">
       
-      {/* HERO SECTION */}
-      <section className="flex-1 flex flex-col items-center justify-center text-center pt-14 md:pt-16 mt-0 md:mt-12 w-full">
-        <h1 className="text-white text-[8.5vw] sm:text-6xl md:text-7xl font-medium tracking-tight leading-tight drop-shadow-2xl animate-in slide-in-from-top duration-700 whitespace-nowrap w-full text-center">
-          Discover Destinations
-        </h1>
-        <h2 className="mt-2 text-white/80 text-[4.4vw] sm:text-2xl md:text-2xl font-light whitespace-nowrap w-full text-center">
-          Sustainable adventures start here
-        </h2>
+      {/* HEADER INTEGRADO */}
+      <Header />
 
-        <div className="mt-10 flex flex-row justify-start md:justify-center gap-8 md:gap-14 items-center w-full pl-1 md:pl-0 md:mt-14 overflow-x-auto md:overflow-visible scrollbar-hide py-4 md:py-6">
-          {categories.map((cat, index) => (
-            <Link 
-              key={index} 
-              href={cat.href} 
-              className="flex flex-col items-center gap-2 cursor-pointer group no-underline shrink-0 md:w-[120px]"
-            >
-              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-white/20 shadow-lg shadow-black/20">
-                {cat.icon}
-              </div>
-              <span className="text-white text-[11px] md:text-[13px] font-light tracking-widest text-center uppercase whitespace-nowrap">
-                {cat.name}
-              </span>
-            </Link>
-          ))}
-          <div className="shrink-0 w-4 md:hidden" />
+      {/* Buscador de Países Funcional del Globo (Reposicionado para no chocar con el Header) */}
+      <div className="absolute top-24 md:top-28 left-4 md:left-8 z-30 w-full max-w-[280px] md:max-w-xs">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-emerald-400 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Localizar país..." 
+            className="w-full bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-emerald-500/50 transition-all shadow-xl"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-      </section>
-
-      {/* CARDS SECTION */}
-      <section className="w-full z-20 pb-4 md:pb-0 mt-auto mb-4 md:mb-0">
-        <div className="flex justify-between items-end mb-4 w-full px-1 md:px-0">
-          <h2 className="text-white text-lg md:text-2xl font-medium tracking-tight opacity-90">Popular Now</h2>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => scroll('left')}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/10 transition backdrop-blur-sm active:scale-95"
-            >
-              <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-            <button 
-              onClick={() => scroll('right')}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full border border-white/30 flex items-center justify-center text-white hover:bg-white/10 transition backdrop-blur-sm active:scale-95"
-            >
-              <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
+        
+        {filteredPoints.length > 0 && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto">
+            {filteredPoints.map((p) => (
+              <button 
+                key={p.iso} 
+                onClick={() => focusOnCountry(p)}
+                className="w-full px-5 py-3 text-left hover:bg-emerald-500/10 flex items-center justify-between border-b border-white/5 last:border-none transition-colors"
+              >
+                <span className="font-medium text-sm">{p.name}</span>
+                <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{p.iso}</span>
+              </button>
+            ))}
           </div>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020617] z-50">
+          <RefreshCw className="w-12 h-12 text-emerald-500 animate-spin mb-4" />
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-500/50 italic">Sincronizando Atlas de Sostenibilidad...</p>
         </div>
+      )}
 
-        <div 
-          ref={scrollContainerRef}
-          className="flex xl:justify-between justify-start gap-4 md:gap-6 overflow-x-auto snap-x scrollbar-hide w-full items-center pb-6 md:pb-6"
-        >
-          {destinationsData.map((dest) => (
-            <div 
-              key={dest.id} 
-              className="relative shrink-0 w-64 h-52 md:w-[23%] md:h-72 rounded-[30px] md:rounded-[35px] bg-black/10 overflow-hidden snap-center group cursor-pointer shadow-xl shadow-black/30 isolate transform-gpu"
-              style={{ backfaceVisibility: 'hidden' }}
-            >
-              <Image 
-                src={dest.image} 
-                alt="Destination" 
-                fill
-                className="object-cover transition-transform duration-1000 group-hover:scale-110 z-0" 
-                unoptimized
-              />
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none z-10" />
-              
-              <div className="absolute top-4 right-4 w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center hover:bg-white/30 transition z-20 transform-gpu">
-                <ExternalLink className="w-3 h-3 md:w-4 md:h-4 text-white" />
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020617] z-50 p-6 text-center">
+          <AlertCircle className="w-20 h-20 text-red-500 mb-6" />
+          <p className="text-slate-400 max-w-sm mb-8 font-mono text-xs leading-relaxed italic">{error}</p>
+          <button onClick={fetchData} className="px-10 py-4 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-emerald-50 transition-all active:scale-95">Reintentar Conexión</button>
+        </div>
+      )}
+
+      <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+
+      {/* Footer Status */}
+      {!selectedPoint && (
+        <div className="absolute bottom-8 left-8 z-10 pointer-events-none flex gap-4">
+          <Badge icon={<MapPin size={12} />} text={`${ecoPoints.length} Países en el Índice`} />
+          <Badge icon={<Activity size={12} />} text="Fusión CSV Exitosa" />
+        </div>
+      )}
+
+      {/* Panel Detallado */}
+      {selectedPoint && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl bg-[#0a0f1e]/90 backdrop-blur-3xl border border-white/10 p-8 md:p-12 rounded-[3rem] shadow-2xl z-40 animate-in fade-in slide-in-from-bottom-10 duration-500">
+          <div className="flex justify-between items-start mb-10">
+            <div className="flex gap-8 items-center">
+              <div className="w-24 h-24 rounded-[2rem] bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                <span className="text-4xl font-black italic text-emerald-400 uppercase">{selectedPoint.iso}</span>
               </div>
-
-              <div className="absolute bottom-0 left-0 w-full p-4 md:p-6 flex justify-between items-end gap-3 z-20 transform-gpu">
-                <p className="text-white text-sm md:text-base font-light leading-snug line-clamp-2 max-w-[160px] md:max-w-[220px] drop-shadow-md">
-                  {dest.text}
-                </p>
-                <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
-                  <span className="text-white font-semibold text-xs md:text-sm">{dest.price}</span>
+              <div>
+                <h2 className="text-6xl font-black tracking-tighter italic leading-none mb-3">{selectedPoint.name}</h2>
+                <div className="flex gap-3">
+                   <span className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">
+                    Eco-Score: {selectedPoint.score}%
+                  </span>
+                  <span className="px-4 py-1.5 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10">
+                    IDH: {selectedPoint.hdi}
+                  </span>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-};
+            <button onClick={() => setSelectedPoint(null)} className="p-4 hover:bg-white/10 rounded-full transition-all text-white/20 hover:text-white">
+              <X size={32} />
+            </button>
+          </div>
 
-/* ==========================================================================
-   APP
-   ========================================================================== */
-export default function App() {
-  return (
-    <main className="relative w-full h-svh bg-[#050609] font-sans text-white overflow-hidden selection:bg-indigo-500/30">
-      <div className="relative w-full h-full max-w-[1920px] mx-auto flex flex-col">
-        
-        <div className="fixed inset-0 z-0 pointer-events-none select-none">
-          <div className="absolute inset-0">
-              <div className="hidden md:block absolute inset-0">
-                <Image
-                   src="/Back_Globe.png"
-                   alt="Earth Globe Background"
-                   fill
-                   className="object-cover"
-                   priority
-                   unoptimized
-                />
-              </div>
-              <div className="block md:hidden absolute inset-0">
-                <Image
-                   src="/Back_Globe_Mobile.png"
-                   alt="Earth Globe Background Mobile"
-                   fill
-                   className="object-cover"
-                   priority
-                   unoptimized
-                />
-              </div>
-            <div className="absolute inset-0 bg-black/30" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5 mb-10">
+            <MetricBox icon={<Wind />} label="CO2 P.C." value={selectedPoint.co2} color="text-blue-400" />
+            <MetricBox icon={<Zap />} label="Renovables" value={`${selectedPoint.renewables}%`} color="text-yellow-400" />
+            <MetricBox icon={<ShieldCheck />} label="Protección" value={`${selectedPoint.protected}%`} color="text-emerald-400" />
+            <MetricBox icon={<Droplets />} label="Agua Segura" value={`${selectedPoint.water}%`} color="text-teal-400" />
+            <MetricBox icon={<Heart />} label="E. de Vida" value={`${selectedPoint.life} años`} color="text-rose-400" />
+            <MetricBox icon={<Compass />} label="PM2.5 (Aire)" value={selectedPoint.pm25} color="text-slate-400" />
+          </div>
+
+          <div className="bg-white/5 p-8 rounded-[2rem] border border-white/5 flex gap-8 items-center group overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+               <Award size={80} />
+            </div>
+            <div className="shrink-0 w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/10">
+              <Award className="text-emerald-500" size={32} />
+            </div>
+            <div className="relative z-10">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500/60 mb-1">Métrica Destacada del País</p>
+              <p className="text-slate-300 text-lg italic font-light leading-relaxed italic">
+                &quot;{selectedPoint.trivia || `Este país presenta un desempeño de sostenibilidad robusto basado en sus métricas de CO2 y acceso a servicios básicos.`}&quot;
+              </p>
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Estructura Principal */}
-        <div className="relative z-10 flex flex-col h-full w-full">
-          <Header />
-          <HomeView />
-        </div>
-      </div>
+function Badge({ icon, text }: { icon: React.ReactNode, text: string }) {
+  return (
+    <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-900/60 backdrop-blur-md rounded-full border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/60">
+      <span className="text-emerald-400">{icon}</span>
+      {text}
+    </div>
+  );
+}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        body { overscroll-behavior-y: none; }
-      `}} />
-    </main>
+function MetricBox({ icon, label, value, color }: { icon: React.ReactNode, label: string, value: string, color: string }) {
+  return (
+    <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 text-center group hover:bg-white/10 transition-all cursor-default flex flex-col items-center justify-center">
+      <div className={`mb-3 flex justify-center ${color} group-hover:scale-125 transition-transform duration-500`}>{icon}</div>
+      <p className="text-[8px] text-white/30 uppercase font-black tracking-widest mb-2 leading-none">{label}</p>
+      <p className="font-mono text-xs font-bold text-white truncate w-full">{value}</p>
+    </div>
   );
 }
