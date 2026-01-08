@@ -74,7 +74,7 @@ const Header = () => {
 
   const navItems: NavItem[] = [
     { name: 'About Us', href: '/about-us' },
-    { name: 'Globe', href: '/globe-eco' }, // Actualizado a ruta interna
+    { name: 'Globe', href: '/globe-eco' },
     { name: 'Settings', href: '/settings' },
     { name: 'Help/FAQ', href: '/help' },
     { name: 'Sign Up', href: '/sign-up' }
@@ -172,8 +172,11 @@ export default function App() {
     try {
       setIsLoading(true);
       setError(null);
-      // Petición al backend que sirve el archivo sustainability_index.csv
-      const res = await fetch('http://localhost:5000/api/data');
+      
+      // CAMBIO IMPORTANTE: Usamos '/api/data' (ruta relativa) en lugar de localhost
+      // Esto funciona tanto en tu PC como en Vercel automáticamente.
+      const res = await fetch('/api/data');
+      
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "Error al conectar con el servidor de datos");
@@ -182,7 +185,7 @@ export default function App() {
       setEcoPoints(data);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Error desconocido";
-      setError(`Error de sincronización: ${errorMessage}. Verifica que el backend esté leyendo el nuevo CSV.`);
+      setError(`Error de sincronización: ${errorMessage}.`);
     } finally {
       setIsLoading(false);
     }
